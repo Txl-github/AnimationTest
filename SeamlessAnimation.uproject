@@ -1,0 +1,16 @@
+{
+	"FileVersion": 3,
+	"EngineAssociation": "{4358E2BD-4E20-4E66-13C3-D08B387E76B1}",
+	"Category": "",
+	"Description": "",
+	"Modules": [
+		{
+			"Name": "SeamlessAnimation",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"AdditionalDependencies": [
+				"Engine"
+			]
+		}
+	]
+}
