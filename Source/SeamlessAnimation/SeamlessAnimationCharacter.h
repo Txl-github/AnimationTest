@@ -6,6 +6,7 @@
 #include "GameFramework/Character.h"
 #include "SeamlessAnimationCharacter.generated.h"
 
+
 UCLASS(config=Game)
 class ASeamlessAnimationCharacter : public ACharacter
 {
@@ -31,10 +32,13 @@ public:
 
 protected:
 	//角色是否为跟运动
-	UPROPERTY(EditAnywhere, Category="SA_AnimationSetting")
-	bool bRootMotion = false;
+	bool bRootMotion = true;
 
 	bool bMoveAccelerate = false;
+
+	UPROPERTY(EditAnywhere, Category = "RootMotion", meta = (UIMin=0.001f, UIMax=0.1f))
+	float AnimBlendMinValue = 0.035f;
+
 	//轴向移动大小 (X表示前后，Y表示左右),用于跟动画
 	FVector2D MoveAxis;
 
@@ -57,6 +61,9 @@ protected:
 	void MoveRight(float Value);
 
 	void MoveAccelerate(float Value);
+
+	float MoveAxisValueBlend(float axisValue, float inputValue);
+
 
 	/** 
 	 * Called via input to turn at a given rate. 

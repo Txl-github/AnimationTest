@@ -57,7 +57,7 @@ void ASeamlessAnimationCharacter::SetupPlayerInputComponent(class UInputComponen
 	// Set up gameplay key bindings
 	check(PlayerInputComponent);
 
-	if (bMoveAccelerate)
+	if (!bRootMotion)
 	{
 		PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ACharacter::Jump);
 		PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
@@ -103,6 +103,7 @@ void ASeamlessAnimationCharacter::Tick(float DeltaTime)
 	{
 		FVector2D moveAxis = bMoveAccelerate ? MoveAxis : MoveAxis * 0.5;
 		AnimInstance->UpdateDir(this, moveAxis);
+
 	}
 
 }
@@ -143,9 +144,9 @@ void ASeamlessAnimationCharacter::LookUpAtRate(float Rate)
 
 void ASeamlessAnimationCharacter::MoveForward(float Value)
 {
-	if (bRootMotion)
+	if (bRootMotion && (Controller != nullptr))
 	{
-		MoveAxis.X = Value;
+		MoveAxis.X = MoveAxisValueBlend(MoveAxis.X, Value);
 	}
 	else if ((Controller != nullptr) && (Value != 0.0f))
 	{
@@ -161,9 +162,9 @@ void ASeamlessAnimationCharacter::MoveForward(float Value)
 
 void ASeamlessAnimationCharacter::MoveRight(float Value)
 {
-	if (bRootMotion)
+	if (bRootMotion && (Controller != nullptr))
 	{
-		MoveAxis.Y = Value;
+		MoveAxis.Y = MoveAxisValueBlend(MoveAxis.Y, Value);
 	}
 	else if ( (Controller != nullptr) && (Value != 0.0f) )
 	{
@@ -176,7 +177,6 @@ void ASeamlessAnimationCharacter::MoveRight(float Value)
 		// add movement in that direction
 		AddMovementInput(Direction, Value);
 	}
-
 }
 
 void ASeamlessAnimationCharacter::MoveAccelerate(float Value)
@@ -186,3 +186,36 @@ void ASeamlessAnimationCharacter::MoveAccelerate(float Value)
 	else
 		bMoveAccelerate = false;
 }
+
+float ASeamlessAnimationCharacter::MoveAxisValueBlend(float axisValue, float inputValue)
+{
+	//前后移动混合
+	if (inputValue > 0.0f)
+	{
+		axisValue += AnimBlendMinValue;
+		axisValue = FMath::Clamp(axisValue, 0.0f, 1.0f);
+	}
+	else if (inputValue < 0.0f)
+	{
+		axisValue -= AnimBlendMinValue;
+		axisValue = FMath::Clamp(axisValue, -1.0f, 0.0f);
+	}
+	else if (inputValue == 0.0f)
+	{
+		if (axisValue > AnimBlendMinValue)
+		{
+			axisValue -= AnimBlendMinValue;
+		}
+		else if (axisValue < -(AnimBlendMinValue))
+		{
+			axisValue += AnimBlendMinValue;
+		}
+		else
+		{
+			axisValue = 0;
+		}
+	}
+
+	return axisValue;
+}
+
