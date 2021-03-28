@@ -36,11 +36,17 @@ protected:
 
 	bool bMoveAccelerate = false;
 
-	UPROPERTY(EditAnywhere, Category = "RootMotion", meta = (UIMin=0.001f, UIMax=0.1f))
-	float AnimBlendMinValue = 0.035f;
+	UPROPERTY(EditAnywhere, Category = "SA_Animation", meta = (UIMin=0.001f, UIMax=0.1f))
+	float AnimBlendMinValue = 0.02f;
 
 	//轴向移动大小 (X表示前后，Y表示左右),用于跟动画
 	FVector2D MoveAxis;
+
+	UPROPERTY(EditAnywhere, Category = "SA_Animation", meta = (UIMin = 0.3f, UIMax = 0.7f))
+	float IKLineTraceStartScale_Z = 0.5;
+
+	UPROPERTY(EditAnywhere, Category = "SA_Animation", meta = (UIMin = 0.3f, UIMax = 0.7f))
+	float IKLineTraceEndScale_Z = 0.5;
 
 	class USA_AnimInstance* AnimInstance;
 
@@ -48,6 +54,10 @@ public:
 	virtual void BeginPlay() override;
 
 protected:
+
+	//返回碰撞距离
+	UFUNCTION(BlueprintCallable, Category = "SA_Animation")
+	float IKLineTrace(FName boneName, FHitResult& OutHitResult);
 
 	virtual void Tick(float DeltaTime) override;
 

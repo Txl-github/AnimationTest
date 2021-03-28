@@ -9,6 +9,9 @@
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "SA_AnimInstance.h"
+#include "SeamlessAnimation.h"
+//#include "Kismet/KismetSystemLibrary.h"
+#include "Engine/Public/DrawDebugHelpers.h"
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -95,15 +98,46 @@ void ASeamlessAnimationCharacter::BeginPlay()
 	
 }
 
+float ASeamlessAnimationCharacter::IKLineTrace(FName boneName, FHitResult& OutHitResult)
+{
+	FVector boneLoc = GetMesh()->GetSocketLocation(boneName);
+	FVector characterLoc = GetTransform().GetLocation();
+
+	//计算射线检测的起点和终点
+	float halfHeight = GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+	float startOffset = halfHeight * (1 - IKLineTraceStartScale_Z);
+	float endOffset = halfHeight * (1 + (1 - IKLineTraceEndScale_Z) );
+	FVector lineTraceStart(boneLoc.X, boneLoc.Y, characterLoc.Z - startOffset);
+	FVector lineTraceEnd(boneLoc.X, boneLoc.Y, characterLoc.Z - endOffset);
+
+	//DrawDebugLine(GetWorld(), lineTraceStart, lineTraceEnd, FColor::Red);
+
+	FHitResult hitRet;
+	FCollisionQueryParams TraceParams(SCENE_QUERY_STAT(IKTrace), true, this);
+	bool hitSuccess = GetWorld()->LineTraceSingleByChannel(hitRet, lineTraceStart, lineTraceEnd, COLLISION_IK, TraceParams);
+	OutHitResult = hitRet;
+	if (hitSuccess)
+	{
+		//startOffset是射线开始的相对距离
+		return (startOffset - hitRet.Distance);
+	}
+
+	return 0;
+}
+
 void ASeamlessAnimationCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
 	if (bRootMotion && IsValid(AnimInstance))
 	{
-		FVector2D moveAxis = bMoveAccelerate ? MoveAxis : MoveAxis * 0.5;
-		AnimInstance->UpdateDir(this, moveAxis);
+		AnimInstance->UpdateDir(this, MoveAxis);
 
+		FHitResult leftFootHitRet;
+		FHitResult rightFootHitRet;
+		//更新左右脚的IK
+		AnimInstance->UpdateFootEffectorLoc(IKLineTrace(FName(TEXT("foot_l")), leftFootHitRet), IKLineTrace(FName(TEXT("foot_r")), rightFootHitRet));
+		AnimInstance->UpdateFootRotate(leftFootHitRet, rightFootHitRet);
 	}
 
 }
@@ -189,31 +223,33 @@ void ASeamlessAnimationCharacter::MoveAccelerate(float Value)
 
 float ASeamlessAnimationCharacter::MoveAxisValueBlend(float axisValue, float inputValue)
 {
-	//前后移动混合
-	if (inputValue > 0.0f)
+	float goalValue = 0;
+
+	if (inputValue == 0.0f)
 	{
-		axisValue += AnimBlendMinValue;
-		axisValue = FMath::Clamp(axisValue, 0.0f, 1.0f);
+		goalValue = 0.0f;
+	}
+	else if (inputValue > 0.0f)
+	{
+		goalValue = bMoveAccelerate ? 1.0f : 0.5f;
 	}
 	else if (inputValue < 0.0f)
 	{
-		axisValue -= AnimBlendMinValue;
-		axisValue = FMath::Clamp(axisValue, -1.0f, 0.0f);
+		goalValue = bMoveAccelerate ? -1.0f : -0.5f;
 	}
-	else if (inputValue == 0.0f)
+
+	//移动混合,慢慢靠近目标值
+	float offsetValue = goalValue - axisValue;
+
+	if (FMath::Abs(offsetValue) <= AnimBlendMinValue)
 	{
-		if (axisValue > AnimBlendMinValue)
-		{
-			axisValue -= AnimBlendMinValue;
-		}
-		else if (axisValue < -(AnimBlendMinValue))
-		{
-			axisValue += AnimBlendMinValue;
-		}
-		else
-		{
-			axisValue = 0;
-		}
+		//已经接近差值最小距离
+		axisValue = goalValue;
+	}
+	else
+	{
+		//慢慢靠近目标值
+		axisValue += offsetValue > 0 ? AnimBlendMinValue : -AnimBlendMinValue;
 	}
 
 	return axisValue;
